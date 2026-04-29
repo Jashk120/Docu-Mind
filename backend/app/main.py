@@ -1,7 +1,9 @@
+import json
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 
 from app.config import settings
 from app.schemas import AnalyzeRepoRequest, CreateReadmeRequest, DocstringPipelineRequest
@@ -54,3 +56,16 @@ async def docstring_pipeline(payload: DocstringPipelineRequest) -> dict[str, Any
     github = GitHubService(payload.github_token)
     pipeline = PipelineService(github)
     return await pipeline.run(payload.owner, payload.repo, payload.max_files)
+
+
+@app.post("/repos/docstring-pipeline/stream")
+async def docstring_pipeline_stream(payload: DocstringPipelineRequest):
+    _require_token(payload.github_token)
+    github = GitHubService(payload.github_token)
+    pipeline = PipelineService(github)
+
+    async def event_generator():
+        async for event in pipeline.stream(payload.owner, payload.repo, payload.max_files):
+            yield f"data: {json.dumps(event)}\n\n"
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")

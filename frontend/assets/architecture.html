@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DocuMind Architecture Diagram</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    body { font-family: Inter, sans-serif; background: radial-gradient(circle at 20% 0%, #1e293b, #020617 55%); color: #e2e8f0; }
+    .card { background: rgba(15,23,42,.75); border: 1px solid rgba(148,163,184,.35); box-shadow: 0 20px 50px rgba(0,0,0,.35); }
+    .logo { width: 28px; height: 28px; object-fit: contain; }
+    .pill { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+  </style>
+</head>
+<body class="min-h-screen p-6 md:p-10">
+  <div class="max-w-7xl mx-auto">
+    <h1 class="text-3xl md:text-4xl font-extrabold mb-2">DocuMind System Architecture</h1>
+    <p class="text-slate-300 mb-8">Block diagram with real runtime data/control flow.</p>
+
+    <div class="card rounded-2xl p-4 md:p-8 overflow-x-auto">
+      <svg width="1280" height="760" viewBox="0 0 1280 760" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#6366f1"/>
+            <stop offset="100%" stop-color="#3b82f6"/>
+          </linearGradient>
+          <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#60a5fa" />
+          </marker>
+        </defs>
+
+        <rect x="40" y="70" rx="16" width="240" height="140" fill="#0f172a" stroke="#64748b"/>
+        <text x="60" y="105" fill="#cbd5e1" font-size="14">User Browser</text>
+        <text x="60" y="135" fill="#93c5fd" font-size="13">/dashboard, /projects, /analytics</text>
+        <text x="60" y="160" fill="#94a3b8" font-size="12">Receives SSE + calls Next APIs</text>
+
+        <rect x="360" y="50" rx="16" width="300" height="180" fill="#0f172a" stroke="#64748b"/>
+        <text x="380" y="85" fill="#e2e8f0" font-size="16" font-weight="700">Next.js Frontend (3000)</text>
+        <text x="380" y="115" fill="#93c5fd" font-size="13">NextAuth + App Router</text>
+        <text x="380" y="140" fill="#cbd5e1" font-size="12">/api/runs, /api/projects, /api/projects/[id]/files</text>
+        <text x="380" y="165" fill="#94a3b8" font-size="12">Persists run metadata + artifact paths</text>
+
+        <rect x="760" y="50" rx="16" width="290" height="180" fill="#0f172a" stroke="#64748b"/>
+        <text x="780" y="85" fill="#e2e8f0" font-size="16" font-weight="700">FastAPI Pipeline (8000)</text>
+        <text x="780" y="115" fill="#93c5fd" font-size="13">/repos/docstring-pipeline/stream</text>
+        <text x="780" y="140" fill="#cbd5e1" font-size="12">analyze repo → file loop → LLM → PR</text>
+        <text x="780" y="165" fill="#94a3b8" font-size="12">Timeout protected LLM requests</text>
+
+        <rect x="1080" y="50" rx="16" width="160" height="180" fill="#0f172a" stroke="#64748b"/>
+        <text x="1100" y="85" fill="#e2e8f0" font-size="14" font-weight="700">GitHub API</text>
+        <text x="1100" y="115" fill="#94a3b8" font-size="12">Repos</text>
+        <text x="1100" y="135" fill="#94a3b8" font-size="12">Tree</text>
+        <text x="1100" y="155" fill="#94a3b8" font-size="12">Contents</text>
+        <text x="1100" y="175" fill="#94a3b8" font-size="12">PR Create</text>
+
+        <rect x="1080" y="290" rx="16" width="160" height="130" fill="#0f172a" stroke="#64748b"/>
+        <text x="1100" y="325" fill="#e2e8f0" font-size="14" font-weight="700">OpenRouter</text>
+        <text x="1100" y="350" fill="#93c5fd" font-size="12">chat/completions</text>
+        <text x="1100" y="372" fill="#94a3b8" font-size="12">Docstrings / CONTEXT / README</text>
+
+        <rect x="360" y="320" rx="16" width="300" height="180" fill="#0f172a" stroke="#64748b"/>
+        <text x="380" y="355" fill="#e2e8f0" font-size="16" font-weight="700">SQLite via Prisma</text>
+        <text x="380" y="385" fill="#93c5fd" font-size="13">User, Account, Session, Project, PipelineRun</text>
+        <text x="380" y="410" fill="#94a3b8" font-size="12">Run stats, status, token usage, duration</text>
+
+        <rect x="760" y="320" rx="16" width="290" height="180" fill="#0f172a" stroke="#64748b"/>
+        <text x="780" y="355" fill="#e2e8f0" font-size="16" font-weight="700">Disk Artifact Storage</text>
+        <text x="780" y="385" fill="#93c5fd" font-size="13">frontend/storage/{owner}/{repo}/{timestamp}/</text>
+        <text x="780" y="410" fill="#94a3b8" font-size="12">README.md, CONTEXT.md, documented source files</text>
+
+        <line x1="280" y1="140" x2="360" y2="140" stroke="#60a5fa" stroke-width="3" marker-end="url(#arrow)"/>
+        <line x1="660" y1="140" x2="760" y2="140" stroke="#60a5fa" stroke-width="3" marker-end="url(#arrow)"/>
+        <line x1="1050" y1="120" x2="1080" y2="120" stroke="#60a5fa" stroke-width="3" marker-end="url(#arrow)"/>
+        <line x1="1050" y1="180" x2="1080" y2="320" stroke="#60a5fa" stroke-width="3" marker-end="url(#arrow)"/>
+        <line x1="760" y1="220" x2="660" y2="380" stroke="#60a5fa" stroke-width="3" marker-end="url(#arrow)"/>
+        <line x1="660" y1="420" x2="760" y2="420" stroke="#60a5fa" stroke-width="3" marker-end="url(#arrow)"/>
+        <line x1="510" y1="230" x2="510" y2="320" stroke="#60a5fa" stroke-width="3" marker-end="url(#arrow)"/>
+        <line x1="510" y1="500" x2="190" y2="500" stroke="#60a5fa" stroke-width="3"/>
+        <line x1="190" y1="500" x2="190" y2="210" stroke="#60a5fa" stroke-width="3" marker-end="url(#arrow)"/>
+
+        <rect x="40" y="560" rx="12" width="1200" height="140" fill="#020617" stroke="#334155"/>
+        <text x="60" y="595" fill="#e2e8f0" font-size="14" font-weight="700">Legend</text>
+        <text x="60" y="620" fill="#94a3b8" font-size="12">Solid blue arrows = synchronous API calls. Return path to browser carries SSE events and final payload.</text>
+        <text x="60" y="642" fill="#94a3b8" font-size="12">Failure modes: GitHub token 401, OpenRouter timeout, partial completion without PR, Prisma/client schema drift.</text>
+        <text x="60" y="664" fill="#94a3b8" font-size="12">Auth identity source: session.user.id (not email) to avoid private-email redirect issues.</text>
+      </svg>
+    </div>
+  </div>
+</body>
+</html>

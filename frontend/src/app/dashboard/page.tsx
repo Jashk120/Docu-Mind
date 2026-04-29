@@ -13,10 +13,6 @@ export default async function DashboardPage() {
   }
 
   return (
-    <DashboardClient
-      accessToken={session.accessToken}
-      userName={session.user.name ?? undefined}
-      userImage={session.user.image ?? undefined}
-    />
+    <DashboardClient accessToken={session.accessToken} />
   );
 }

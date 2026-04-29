@@ -1,31 +1,61 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+
+import { AppNavbar } from "@/components/app-navbar";
 
 type Repo = {
   full_name: string;
 };
 
+type FileDiff = {
+  path: string;
+  original_content: string;
+  documented_content: string;
+};
+
+type ConfidenceFlag = {
+  path: string;
+  confidence: string;
+  reason: string;
+};
+
 type PipelineResponse = {
   pr_url?: string;
+  status?: string;
+  context_md?: string;
+  readme_md?: string;
+  completed_files?: Record<string, string>;
+  skipped_files?: Array<{ path: string; reason?: string }>;
+  file_diffs?: FileDiff[];
+  confidence_flags?: ConfidenceFlag[];
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+  };
 };
 
 const steps = [
-  "Fetching repo structure",
-  "Generating docstrings",
-  "Building CONTEXT.md",
-  "Generating README",
-  "Creating Pull Request",
+  { key: "tree_fetch", label: "Fetching repo structure" },
+  { key: "file_done", label: "Generating docstrings" },
+  { key: "context_done", label: "Building CONTEXT.md" },
+  { key: "readme_done", label: "Generating README" },
+  { key: "pr_done", label: "Creating Pull Request" },
 ];
+
+function parseContextSections(context: string) {
+  const lines = context.split("\n");
+  const tableLines = lines.filter((l) => l.includes("|") && l.trim().startsWith("|"));
+  const securityLines = lines.filter((l) => /security|auth|token|permission/i.test(l));
+  return { tableLines, securityLines };
+}
 
 export function DashboardClient({
   accessToken,
-  userName,
-  userImage,
 }: {
   accessToken: string;
-  userName?: string;
-  userImage?: string;
 }) {
   const [repos, setRepos] = useState<Repo[]>([]);
   const [selectedRepo, setSelectedRepo] = useState<string>("");
@@ -34,6 +64,11 @@ export function DashboardClient({
   const [activeStep, setActiveStep] = useState<number>(-1);
   const [prUrl, setPrUrl] = useState<string>("");
   const [error, setError] = useState<string>("");
+  const [contextMd, setContextMd] = useState<string>("");
+  const [fileDiffs, setFileDiffs] = useState<FileDiff[]>([]);
+  const [confidenceFlags, setConfidenceFlags] = useState<ConfidenceFlag[]>([]);
+  const [selectedDiffPath, setSelectedDiffPath] = useState<string>("");
+  const [projectId, setProjectId] = useState<string>("");
 
   const backendUrl = useMemo(() => process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8000", []);
 
@@ -41,7 +76,6 @@ export function DashboardClient({
     const loadRepos = async () => {
       setLoadingRepos(true);
       setError("");
-
       try {
         const res = await fetch("https://api.github.com/user/repos", {
           headers: {
@@ -49,11 +83,16 @@ export function DashboardClient({
             Accept: "application/vnd.github+json",
           },
         });
-
         if (!res.ok) {
-          throw new Error(`GitHub repo fetch failed (${res.status})`);
+          let detail = "";
+          try {
+            const data = await res.json();
+            detail = data?.message ? `: ${data.message}` : "";
+          } catch {
+            detail = "";
+          }
+          throw new Error(`GitHub repo fetch failed (${res.status})${detail}`);
         }
-
         const data = (await res.json()) as Repo[];
         setRepos(data);
       } catch (err) {
@@ -62,9 +101,12 @@ export function DashboardClient({
         setLoadingRepos(false);
       }
     };
-
     void loadRepos();
   }, [accessToken]);
+
+  const selectedDiff = fileDiffs.find((d) => d.path === selectedDiffPath) ?? fileDiffs[0];
+  const { tableLines, securityLines } = parseContextSections(contextMd);
+  const canGenerate = Boolean(selectedRepo) && !running && !loadingRepos;
 
   const generateDocs = async () => {
     if (!selectedRepo) return;
@@ -74,33 +116,109 @@ export function DashboardClient({
     setActiveStep(0);
     setPrUrl("");
     setError("");
+    setContextMd("");
+    setFileDiffs([]);
+    setConfidenceFlags([]);
+    setSelectedDiffPath("");
+    setProjectId("");
 
-    const timer = window.setInterval(() => {
-      setActiveStep((prev) => {
-        if (prev >= steps.length - 1) return prev;
-        return prev + 1;
-      });
-    }, 1500);
+    const startedAt = Date.now();
     const controller = new AbortController();
     const timeoutId = window.setTimeout(() => controller.abort(), 15 * 60 * 1000);
 
     try {
-      const res = await fetch(`${backendUrl}/repos/docstring-pipeline`, {
+      const res = await fetch(`${backendUrl}/repos/docstring-pipeline/stream`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ owner, repo, github_token: accessToken, max_files: 20 }),
         signal: controller.signal,
       });
 
-      if (!res.ok) {
-        throw new Error(`Pipeline failed (${res.status}): ${await res.text()}`);
+      if (!res.ok) throw new Error(`Pipeline failed (${res.status}): ${await res.text()}`);
+      if (!res.body) throw new Error("Streaming body missing");
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let finalResult: PipelineResponse | null = null;
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const events = buffer.split("\n\n");
+        buffer = events.pop() ?? "";
+
+        for (const eventChunk of events) {
+          const dataLine = eventChunk.split("\n").find((line) => line.startsWith("data:"));
+          if (!dataLine) continue;
+
+          const payload = JSON.parse(dataLine.slice(5).trim()) as {
+            stage: string;
+            pr_url?: string;
+            result?: PipelineResponse;
+          };
+
+          switch (payload.stage) {
+            case "tree_fetch":
+              setActiveStep(0);
+              break;
+            case "file_done":
+              setActiveStep(1);
+              break;
+            case "context_done":
+              setActiveStep(2);
+              break;
+            case "readme_done":
+              setActiveStep(3);
+              break;
+            case "pr_done":
+              setActiveStep(4);
+              if (payload.pr_url) setPrUrl(payload.pr_url);
+              break;
+            case "pipeline_done":
+              finalResult = payload.result ?? null;
+              break;
+            default:
+              break;
+          }
+        }
       }
 
-      const data = (await res.json()) as PipelineResponse;
-      setActiveStep(steps.length - 1);
+      const data = finalResult;
+      if (!data) throw new Error("Pipeline did not return final result");
+
       setPrUrl(data.pr_url ?? "");
+      setContextMd(data.context_md ?? "");
+      setFileDiffs(data.file_diffs ?? []);
+      setConfidenceFlags(data.confidence_flags ?? []);
+      if ((data.file_diffs ?? []).length > 0) setSelectedDiffPath(data.file_diffs![0].path);
+
+      const durationMs = Date.now() - startedAt;
+      const runRes = await fetch("/api/runs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          owner,
+          repo,
+          status: data.status ?? "partial",
+          pr_url: data.pr_url ?? null,
+          context_md: data.context_md ?? null,
+          readme_md: data.readme_md ?? null,
+          completed_files: data.completed_files ?? {},
+          skipped_files: data.skipped_files ?? [],
+          file_diffs: data.file_diffs ?? [],
+          confidence_flags: data.confidence_flags ?? [],
+          max_files: 20,
+          duration_ms: durationMs,
+          usage: data.usage ?? { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+        }),
+      });
+      if (runRes.ok) {
+        const runData = await runRes.json();
+        if (runData?.project?.id) setProjectId(runData.project.id);
+      }
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError") {
         setError("Pipeline timed out after 15 minutes. Try a smaller repo or reduce max_files.");
@@ -108,155 +226,161 @@ export function DashboardClient({
         setError(String(err));
       }
     } finally {
-      window.clearInterval(timer);
       window.clearTimeout(timeoutId);
       setRunning(false);
     }
   };
 
   return (
-    <>
-      <nav className="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-8 h-16 bg-slate-950/80 backdrop-blur-lg border-b border-white/10 shadow-[0_10px_40px_-15px_rgba(99,102,241,0.2)]">
-        <div className="flex items-center gap-8">
-          <span className="text-xl font-bold tracking-tight text-slate-50 font-[Manrope] antialiased">DocuMind AI</span>
-          <div className="hidden md:flex items-center gap-6">
-            <span className="text-indigo-400 font-semibold border-b-2 border-indigo-500 pb-1 font-[Manrope] text-sm">Dashboard</span>
-            <span className="text-slate-400 font-medium">Projects</span>
-            <span className="text-slate-400 font-medium">Documentation</span>
-            <span className="text-slate-400 font-medium">Analytics</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-4">
-          <span className="text-slate-400 text-sm">{userName ?? "GitHub User"}</span>
-          <div className="h-8 w-8 rounded-full overflow-hidden border border-indigo-500/30">
-            {userImage ? <img alt="User avatar" className="h-full w-full object-cover" src={userImage} /> : null}
-          </div>
-        </div>
-      </nav>
+    <div className="min-h-screen bg-[#0a0a0a] text-white">
+      <AppNavbar />
 
-      <aside className="fixed left-0 top-16 bottom-0 flex flex-col z-40 h-full w-64 border-r border-white/10 bg-slate-950/50 backdrop-blur-xl shadow-2xl shadow-indigo-900/20 font-[Manrope] text-sm">
-        <div className="p-6">
-          <button className="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-indigo-500/20">
-            <span className="material-symbols-outlined text-[20px]">auto_awesome</span>
-            Generate
+      <main className="mx-auto grid max-w-7xl grid-cols-1 gap-6 px-6 py-6 lg:grid-cols-3">
+        <section className="glass-panel rounded-2xl p-5 lg:col-span-1">
+          <h2 className="mb-4 text-lg font-semibold">Pipeline</h2>
+          <label className="mb-2 block text-xs uppercase tracking-wider text-indigo-300">Repository</label>
+          <select
+            value={selectedRepo}
+            onChange={(e) => setSelectedRepo(e.target.value)}
+            className="mb-4 w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-3 text-sm"
+          >
+            <option value="">{loadingRepos ? "Loading repositories..." : "Select a repository"}</option>
+            {repos.map((repo) => (
+              <option key={repo.full_name} value={repo.full_name}>{repo.full_name}</option>
+            ))}
+          </select>
+
+          <button
+            type="button"
+            onClick={() => {
+              if (!canGenerate) return;
+              void generateDocs();
+            }}
+            aria-disabled={!canGenerate}
+            className={`mb-5 w-full rounded-xl px-4 py-3 text-sm font-semibold ${
+              canGenerate ? "bg-indigo-600 hover:bg-indigo-500" : "cursor-not-allowed bg-indigo-900/60 opacity-50"
+            }`}
+          >
+            {running ? "Generating..." : "Generate Docs"}
           </button>
-        </div>
-      </aside>
 
-      <main className="pl-64 pt-16 min-h-screen bg-background text-on-background">
-        <div className="max-w-4xl mx-auto px-8 py-12">
-          <header className="mb-10 text-center">
-            <h1 className="text-4xl font-bold text-white mb-2">Workspace Dashboard</h1>
-            <p className="text-[#a1a1aa]">Synthesize and automate your documentation with enterprise AI.</p>
-          </header>
-
-          <section className="glass-panel rounded-[32px] p-8 ai-glow relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-transparent pointer-events-none" />
-            <div className="relative z-10 space-y-10">
-              <div>
-                <label className="block text-sm text-indigo-300 uppercase tracking-widest mb-4">Select Repository</label>
-                <div className="relative group">
-                  <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
-                    <span className="material-symbols-outlined text-indigo-400">search</span>
-                  </div>
-                  <select
-                    value={selectedRepo}
-                    onChange={(e) => setSelectedRepo(e.target.value)}
-                    className="w-full bg-slate-900/50 border border-white/10 rounded-2xl py-4 pl-12 pr-4 text-white appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all cursor-pointer"
+          <div className="space-y-2">
+            {steps.map((step, idx) => {
+              const status = idx < activeStep ? "done" : idx === activeStep ? "active" : "pending";
+              return (
+                <div key={step.key} className="flex items-center justify-between rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2 text-sm">
+                  <span className={status === "pending" ? "text-zinc-500" : "text-zinc-100"}>{step.label}</span>
+                  <span
+                    className={`text-xs px-2 py-0.5 rounded-full ${
+                      status === "done"
+                        ? "bg-emerald-500/15 text-emerald-300"
+                        : status === "active"
+                          ? "bg-indigo-500/15 text-indigo-300"
+                          : "bg-zinc-800 text-zinc-500"
+                    }`}
                   >
-                    <option value="">{loadingRepos ? "Loading repositories..." : "Select a repository"}</option>
-                    {repos.map((repo) => (
-                      <option key={repo.full_name} value={repo.full_name}>
-                        {repo.full_name}
-                      </option>
-                    ))}
-                  </select>
-                  <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none">
-                    <span className="material-symbols-outlined text-slate-500">keyboard_arrow_down</span>
-                  </div>
+                    {status}
+                  </span>
                 </div>
-              </div>
+              );
+            })}
+          </div>
 
-              <div className="flex justify-center">
-                <button
-                  onClick={generateDocs}
-                  disabled={!selectedRepo || running || loadingRepos}
-                  className="group relative px-10 py-5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-full font-semibold text-white shadow-2xl shadow-indigo-600/30 transition-all active:scale-95 flex items-center gap-3 overflow-hidden"
-                >
-                  <span className={`material-symbols-outlined text-[28px] ${running ? "spinner" : "animate-pulse"}`}>auto_awesome</span>
-                  {running ? "Generating..." : "Generate Docs"}
-                  <div className="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
-                </button>
-              </div>
-
-              <div className="space-y-6">
-                <label className="block text-sm text-indigo-300 uppercase tracking-widest">Processing Pipeline</label>
-                <div className="space-y-4">
-                  {steps.map((step, idx) => {
-                    const status = idx < activeStep ? "done" : idx === activeStep ? "active" : "pending";
-                    return (
-                      <div
-                        key={step}
-                        className={`flex items-center gap-4 p-4 rounded-2xl border transition-all ${
-                          status === "done"
-                            ? "bg-white/5 border-white/5"
-                            : status === "active"
-                              ? "bg-indigo-500/5 border-indigo-500/20 ai-glow"
-                              : "bg-transparent border-dashed border-white/10 opacity-50"
-                        }`}
-                      >
-                        <div className="w-8 h-8 rounded-full flex items-center justify-center bg-slate-800/70">
-                          {status === "done" ? (
-                            <span className="material-symbols-outlined text-emerald-400 text-[20px]">check</span>
-                          ) : status === "active" ? (
-                            <span className="material-symbols-outlined text-indigo-400 text-[24px] spinner">progress_activity</span>
-                          ) : (
-                            <span className="text-xs text-slate-500">{String(idx + 1).padStart(2, "0")}</span>
-                          )}
-                        </div>
-                        <span className={`flex-1 ${status === "pending" ? "text-slate-400" : "text-white"}`}>{step}</span>
-                        <span
-                          className={`text-xs px-3 py-1 rounded-full uppercase ${
-                            status === "done"
-                              ? "text-emerald-400 bg-emerald-400/10"
-                              : status === "active"
-                                ? "text-indigo-400 bg-indigo-400/10"
-                                : "text-slate-500 bg-slate-800"
-                          }`}
-                        >
-                          {status === "done" ? "Completed" : status === "active" ? "In Progress" : "Pending"}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          </section>
-
+          {error ? <p className="mt-4 text-sm text-red-400">{error}</p> : null}
           {prUrl ? (
-            <section className="mt-8 transition-all">
-              <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-[24px] p-6 flex items-center justify-between group cursor-pointer hover:bg-emerald-500/15">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center">
-                    <span className="material-symbols-outlined text-emerald-400 text-[28px]">check_circle</span>
+            <div className="mt-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm">
+              <p className="mb-1 text-emerald-200">Pull Request Created</p>
+              <a className="text-emerald-300 underline" href={prUrl} target="_blank" rel="noreferrer">{prUrl}</a>
+              {projectId ? (
+                <p className="mt-2">
+                  <Link className="text-indigo-300 underline" href={`/projects/${projectId}`}>Open Project Details</Link>
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+        </section>
+
+        <section className="glass-panel rounded-2xl p-5 lg:col-span-2">
+          <h2 className="mb-4 text-lg font-semibold">Before / After Diff</h2>
+          {fileDiffs.length === 0 ? (
+            <p className="text-sm text-zinc-500">Run the pipeline to see transformation diff.</p>
+          ) : (
+            <>
+              <select
+                className="mb-4 w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm"
+                value={selectedDiffPath}
+                onChange={(e) => setSelectedDiffPath(e.target.value)}
+              >
+                {fileDiffs.map((d) => (
+                  <option key={d.path} value={d.path}>{d.path}</option>
+                ))}
+              </select>
+              {selectedDiff ? (
+                <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                  <div>
+                    <p className="mb-2 text-xs uppercase tracking-wide text-zinc-400">Original</p>
+                    <pre className="max-h-[420px] overflow-auto rounded-xl border border-zinc-800 bg-black/30 p-3 text-xs whitespace-pre-wrap">{selectedDiff.original_content}</pre>
                   </div>
                   <div>
-                    <h3 className="text-emerald-100 text-[18px] font-semibold">Pull Request Created</h3>
-                    <p className="text-emerald-400/70 text-sm">Your documentation update is ready for review.</p>
+                    <p className="mb-2 text-xs uppercase tracking-wide text-zinc-400">Documented</p>
+                    <pre className="max-h-[420px] overflow-auto rounded-xl border border-zinc-800 bg-black/30 p-3 text-xs whitespace-pre-wrap">{selectedDiff.documented_content}</pre>
                   </div>
                 </div>
-                <a className="flex items-center gap-2 text-emerald-400 hover:text-emerald-300 font-semibold" href={prUrl} target="_blank" rel="noreferrer">
-                  View on GitHub
-                  <span className="material-symbols-outlined">open_in_new</span>
-                </a>
-              </div>
-            </section>
-          ) : null}
+              ) : null}
+            </>
+          )}
+        </section>
 
-          {error ? <p className="mt-6 text-sm text-red-400">{error}</p> : null}
-        </div>
+        <section className="glass-panel rounded-2xl p-5 lg:col-span-2">
+          <h2 className="mb-4 text-lg font-semibold">CONTEXT.md Viewer</h2>
+          {!contextMd ? (
+            <p className="text-sm text-zinc-500">No context generated yet.</p>
+          ) : (
+            <div className="space-y-4">
+              {tableLines.length > 0 ? (
+                <div>
+                  <p className="mb-2 text-xs uppercase tracking-wide text-zinc-400">Module Table</p>
+                  <pre className="rounded-xl border border-zinc-800 bg-black/30 p-3 text-xs whitespace-pre-wrap">{tableLines.join("\n")}</pre>
+                </div>
+              ) : null}
+
+              {securityLines.length > 0 ? (
+                <div>
+                  <p className="mb-2 text-xs uppercase tracking-wide text-zinc-400">Security Notes</p>
+                  <ul className="list-disc space-y-1 pl-5 text-sm text-zinc-200">
+                    {securityLines.slice(0, 12).map((line, i) => (
+                      <li key={`${line}-${i}`}>{line}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+
+              <details>
+                <summary className="cursor-pointer text-sm text-indigo-300">Show full context</summary>
+                <pre className="mt-3 max-h-[420px] overflow-auto rounded-xl border border-zinc-800 bg-black/30 p-3 text-xs whitespace-pre-wrap">{contextMd}</pre>
+              </details>
+            </div>
+          )}
+        </section>
+
+        <section className="glass-panel rounded-2xl p-5 lg:col-span-1">
+          <h2 className="mb-4 text-lg font-semibold">Confidence Flags</h2>
+          {confidenceFlags.length === 0 ? (
+            <p className="text-sm text-zinc-500">No confidence flags yet.</p>
+          ) : (
+            <div className="space-y-2">
+              {confidenceFlags.map((flag) => (
+                <div key={flag.path} className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-2">
+                  <p className="truncate text-sm text-zinc-200">{flag.path}</p>
+                  <p className={`text-xs ${flag.confidence === "low" ? "text-amber-300" : "text-emerald-300"}`}>
+                    {flag.confidence} · {flag.reason}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
       </main>
-    </>
+    </div>
   );
 }

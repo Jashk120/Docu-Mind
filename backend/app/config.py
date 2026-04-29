@@ -11,6 +11,7 @@ class Settings:
     frontend_url: str
     frontend_urls: list[str]
     openrouter_api_key: str
+    llm_timeout_seconds: float
 
     @property
     def allowed_origins(self) -> list[str]:
@@ -28,4 +29,5 @@ settings = Settings(
     frontend_url=os.getenv("FRONTEND_URL", "http://localhost:3000"),
     frontend_urls=[url.strip() for url in os.getenv("FRONTEND_URLS", "").split(",") if url.strip()],
     openrouter_api_key=os.getenv("OPENROUTER_API_KEY", ""),
+    llm_timeout_seconds=float(os.getenv("LLM_TIMEOUT_SECONDS", "120")),
 )

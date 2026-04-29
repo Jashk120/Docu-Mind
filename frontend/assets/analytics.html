@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>DocuMind AI - Analytics</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;family=Space+Grotesk:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "error-container": "#93000a",
+                      "error": "#ffb4ab",
+                      "surface-container-low": "#0d1c2d",
+                      "secondary-container": "#414658",
+                      "primary": "#c0c1ff",
+                      "outline-variant": "#464554",
+                      "on-error-container": "#ffdad6",
+                      "surface-bright": "#2c3a4c",
+                      "tertiary": "#bcc7de",
+                      "inverse-primary": "#494bd6",
+                      "surface-dim": "#051424",
+                      "surface-variant": "#273647",
+                      "outline": "#908fa0",
+                      "on-secondary-container": "#b0b4c9",
+                      "on-secondary-fixed": "#161b2b",
+                      "tertiary-container": "#8691a7",
+                      "on-secondary-fixed-variant": "#414658",
+                      "on-surface-variant": "#c7c4d7",
+                      "surface-container-lowest": "#010f1f",
+                      "surface-container-high": "#1c2b3c",
+                      "inverse-surface": "#d4e4fa",
+                      "background": "#051424",
+                      "on-tertiary": "#263143",
+                      "on-surface": "#d4e4fa",
+                      "secondary": "#c2c6db",
+                      "primary-container": "#8083ff",
+                      "on-primary-fixed-variant": "#2f2ebe",
+                      "surface-container": "#122131",
+                      "on-secondary": "#2b3040",
+                      "surface-tint": "#c0c1ff",
+                      "on-tertiary-container": "#1f2a3c",
+                      "primary-fixed": "#e1e0ff",
+                      "secondary-fixed-dim": "#c2c6db",
+                      "on-primary": "#1000a9",
+                      "surface": "#051424",
+                      "surface-container-highest": "#273647",
+                      "on-error": "#690005",
+                      "on-tertiary-fixed-variant": "#3c475a",
+                      "tertiary-fixed": "#d8e3fb",
+                      "on-background": "#d4e4fa",
+                      "on-primary-container": "#0d0096",
+                      "primary-fixed-dim": "#c0c1ff",
+                      "tertiary-fixed-dim": "#bcc7de",
+                      "on-tertiary-fixed": "#111c2d",
+                      "secondary-fixed": "#dee1f7",
+                      "inverse-on-surface": "#233143",
+                      "on-primary-fixed": "#07006c"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "md": "24px",
+                      "container-max": "1440px",
+                      "xl": "80px",
+                      "gutter": "24px",
+                      "sm": "12px",
+                      "base": "8px",
+                      "xs": "4px",
+                      "lg": "48px"
+              },
+              "fontFamily": {
+                      "body-sm": ["Inter"],
+                      "body-md": ["Inter"],
+                      "body-lg": ["Inter"],
+                      "h1": ["Inter"],
+                      "h2": ["Inter"],
+                      "mono": ["Space Grotesk"],
+                      "display": ["Inter"],
+                      "label-caps": ["Inter"]
+              },
+              "fontSize": {
+                      "body-sm": ["14px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                      "body-md": ["16px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                      "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                      "h1": ["32px", {"lineHeight": "1.2", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                      "h2": ["24px", {"lineHeight": "1.3", "fontWeight": "600"}],
+                      "mono": ["14px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                      "display": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                      "label-caps": ["12px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "600"}]
+              }
+            },
+          },
+        }
+      </script>
+<style>
+        .glass-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="bg-background font-body-md text-on-background selection:bg-primary-container selection:text-on-primary-container">
+<!-- TopAppBar -->
+<header class="bg-slate-900/60 backdrop-blur-lg font-sans antialiased text-sm font-medium tracking-tight docked full-width top-0 border-b border-white/10 flat no shadows fixed top-0 left-0 w-full z-50 flex items-center justify-between px-6 h-16">
+<div class="flex items-center gap-8">
+<span class="text-xl font-bold text-white tracking-tighter">DocuMind AI</span>
+<nav class="hidden md:flex items-center gap-6">
+<a class="text-slate-400 hover:text-white transition-colors" href="#">Dashboard</a>
+<a class="text-slate-400 hover:text-white transition-colors" href="#">Projects</a>
+<a class="text-slate-400 hover:text-white transition-colors" href="#">Documentation</a>
+<a class="text-indigo-400 border-b-2 border-indigo-500 pb-1" href="#">Analytics</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<button class="hover:bg-white/5 transition-all duration-200 p-2 rounded-lg active:scale-95 opacity-80">
+<span class="material-symbols-outlined text-slate-400">notifications</span>
+</button>
+<button class="hover:bg-white/5 transition-all duration-200 p-2 rounded-lg active:scale-95 opacity-80">
+<span class="material-symbols-outlined text-slate-400">settings</span>
+</button>
+<img alt="User profile avatar" class="w-8 h-8 rounded-full border border-white/10" data-alt="A professional headshot of a person with a serene expression, captured in a high-tech corporate office setting with soft, ambient indigo lighting. The background is slightly blurred, showing hints of modern glass partitions and warm wood accents, emphasizing a sophisticated and reliable professional identity that aligns with an enterprise AI platform." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCCbfRKcslPw5Qr5LRl7KPEr1O4xOKf8k17D83ImQXo7b5FqP9ijHL56pH5L5jW8trYQZBu2ZIVtEfYx-2iIEIPGv7a-g0WivNSwDUGe8n5QNZuTv7zjnN3wzb5sk_zXFlrR4qCWKE4gQk1GTOOtC2H7EcLMjH7VKT41WyUTa2s5PFEX_j_3dKoV8xNHT-u6JfO44XknfCdeTdX9DZEIzZ3D7zsYa8IbOAdkO0WIvwKFJhK80RRADGzWy-5JnZrsRpPvx8EQW3rLbJX"/>
+</div>
+</header>
+<!-- SideNavBar -->
+<aside class="bg-[#1e293b]/80 backdrop-blur-xl font-sans text-xs uppercase tracking-widest font-semibold fixed left-0 top-0 h-full w-64 border-r border-white/5 flat no shadows flex flex-col py-8 px-4 gap-y-6 z-40 pt-20">
+<div class="flex items-center gap-3 px-2 mb-4">
+<div class="w-8 h-8 bg-indigo-500 rounded flex items-center justify-center">
+<span class="material-symbols-outlined text-white" style="font-variation-settings: 'FILL' 1;">smart_toy</span>
+</div>
+<div>
+<h2 class="text-indigo-400 font-black tracking-normal normal-case">DocuMind AI</h2>
+<p class="text-[10px] text-slate-500 tracking-tight font-medium normal-case">Enterprise Intelligence</p>
+</div>
+</div>
+<nav class="flex flex-col gap-1">
+<button class="flex items-center gap-3 p-3 text-slate-400 hover:text-indigo-300 hover:bg-white/5 rounded-lg transition-all duration-300 ease-in-out">
+<span class="material-symbols-outlined">add_circle</span>
+<span>New Document</span>
+</button>
+<button class="flex items-center gap-3 p-3 text-slate-400 hover:text-indigo-300 hover:bg-white/5 rounded-lg transition-all duration-300 ease-in-out">
+<span class="material-symbols-outlined">home</span>
+<span>Home</span>
+</button>
+<button class="flex items-center gap-3 p-3 text-slate-400 hover:text-indigo-300 hover:bg-white/5 rounded-lg transition-all duration-300 ease-in-out">
+<span class="material-symbols-outlined">database</span>
+<span>Repositories</span>
+</button>
+<button class="flex items-center gap-3 p-3 text-slate-400 hover:text-indigo-300 hover:bg-white/5 rounded-lg transition-all duration-300 ease-in-out">
+<span class="material-symbols-outlined">grid_view</span>
+<span>Workspaces</span>
+</button>
+<button class="flex items-center gap-3 p-3 text-slate-400 hover:text-indigo-300 hover:bg-white/5 rounded-lg transition-all duration-300 ease-in-out">
+<span class="material-symbols-outlined">smart_toy</span>
+<span>AI Models</span>
+</button>
+<button class="flex items-center gap-3 p-3 bg-indigo-500/10 text-indigo-400 border-r-2 border-indigo-500 rounded-lg transition-all duration-300 ease-in-out">
+<span class="material-symbols-outlined">bar_chart</span>
+<span>Usage</span>
+</button>
+<button class="flex items-center gap-3 p-3 text-slate-400 hover:text-indigo-300 hover:bg-white/5 rounded-lg transition-all duration-300 ease-in-out mt-auto">
+<span class="material-symbols-outlined">logout</span>
+<span>Log Out</span>
+</button>
+</nav>
+<div class="mt-4 px-2">
+<button class="w-full py-3 bg-primary text-on-primary rounded-lg text-center font-bold tracking-normal normal-case hover:opacity-90 transition-opacity">
+                Upgrade Plan
+            </button>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="ml-64 pt-24 px-8 pb-12 min-h-screen">
+<header class="mb-lg">
+<h1 class="font-h1 text-h1 text-on-surface">System Analytics</h1>
+<p class="font-body-md text-on-surface-variant mt-2">Comprehensive overview of document processing intelligence.</p>
+</header>
+<!-- Stats Grid -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-gutter mb-lg">
+<!-- Total Runs -->
+<div class="glass-card p-md rounded-xl">
+<div class="flex justify-between items-start mb-sm">
+<span class="font-label-caps text-label-caps text-tertiary">TOTAL RUNS</span>
+<span class="material-symbols-outlined text-primary">analytics</span>
+</div>
+<div class="flex flex-col">
+<span class="font-h2 text-h2 text-on-surface">1,284</span>
+<span class="font-body-sm text-primary flex items-center gap-1 mt-xs">
+<span class="material-symbols-outlined text-[14px]">trending_up</span>
+                        +12.5% vs last month
+                    </span>
+</div>
+</div>
+<!-- Success Rate -->
+<div class="glass-card p-md rounded-xl">
+<div class="flex justify-between items-start mb-sm">
+<span class="font-label-caps text-label-caps text-tertiary">SUCCESS RATE</span>
+<span class="material-symbols-outlined text-primary">verified</span>
+</div>
+<div class="flex flex-col">
+<span class="font-h2 text-h2 text-on-surface">99.4%</span>
+<div class="w-full bg-white/5 h-1.5 rounded-full mt-sm overflow-hidden">
+<div class="bg-primary h-full w-[99.4%]"></div>
+</div>
+</div>
+</div>
+<!-- Avg Duration -->
+<div class="glass-card p-md rounded-xl">
+<div class="flex justify-between items-start mb-sm">
+<span class="font-label-caps text-label-caps text-tertiary">AVG DURATION</span>
+<span class="material-symbols-outlined text-primary">timer</span>
+</div>
+<div class="flex flex-col">
+<span class="font-h2 text-h2 text-on-surface">1.4s</span>
+<span class="font-body-sm text-slate-400 flex items-center gap-1 mt-xs">
+                        Per document processed
+                    </span>
+</div>
+</div>
+<!-- Total Files -->
+<div class="glass-card p-md rounded-xl">
+<div class="flex justify-between items-start mb-sm">
+<span class="font-label-caps text-label-caps text-tertiary">FILES DOCUMENTED</span>
+<span class="material-symbols-outlined text-primary">description</span>
+</div>
+<div class="flex flex-col">
+<span class="font-h2 text-h2 text-on-surface">12,402</span>
+<span class="font-body-sm text-primary flex items-center gap-1 mt-xs">
+<span class="material-symbols-outlined text-[14px]">arrow_upward</span>
+                        854 new today
+                    </span>
+</div>
+</div>
+</div>
+<!-- Charts Bento Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-gutter">
+<!-- Bar Chart: Runs per Day -->
+<div class="lg:col-span-8 glass-card p-md rounded-xl flex flex-col gap-md">
+<div class="flex justify-between items-center">
+<div>
+<h3 class="font-h2 text-body-lg font-semibold text-on-surface">Runs per Day</h3>
+<p class="font-body-sm text-on-surface-variant">Daily volume of processed intelligence</p>
+</div>
+<select class="bg-surface-container-low border-white/10 text-on-surface text-xs rounded-lg px-4 py-2 focus:ring-primary focus:border-primary">
+<option>Last 7 Days</option>
+<option>Last 30 Days</option>
+</select>
+</div>
+<div class="flex items-end justify-between h-64 px-4 gap-4">
+<div class="flex flex-col items-center gap-2 w-full">
+<div class="w-full bg-primary/20 rounded-t-lg relative group h-[60%]">
+<div class="absolute inset-0 bg-primary/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-t-lg"></div>
+</div>
+<span class="font-label-caps text-[10px] text-tertiary">MON</span>
+</div>
+<div class="flex flex-col items-center gap-2 w-full">
+<div class="w-full bg-primary/20 rounded-t-lg relative group h-[75%]">
+<div class="absolute inset-0 bg-primary/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-t-lg"></div>
+</div>
+<span class="font-label-caps text-[10px] text-tertiary">TUE</span>
+</div>
+<div class="flex flex-col items-center gap-2 w-full">
+<div class="w-full bg-primary/20 rounded-t-lg relative group h-[45%]">
+<div class="absolute inset-0 bg-primary/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-t-lg"></div>
+</div>
+<span class="font-label-caps text-[10px] text-tertiary">WED</span>
+</div>
+<div class="flex flex-col items-center gap-2 w-full">
+<div class="w-full bg-primary rounded-t-lg relative group h-[90%]">
+<div class="absolute inset-x-0 -top-8 bg-surface-container-highest px-2 py-1 rounded text-[10px] text-white opacity-0 group-hover:opacity-100 transition-opacity whitespace-now8">244 Runs</div>
+</div>
+<span class="font-label-caps text-[10px] text-on-surface font-bold">THU</span>
+</div>
+<div class="flex flex-col items-center gap-2 w-full">
+<div class="w-full bg-primary/20 rounded-t-lg relative group h-[65%]">
+<div class="absolute inset-0 bg-primary/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-t-lg"></div>
+</div>
+<span class="font-label-caps text-[10px] text-tertiary">FRI</span>
+</div>
+<div class="flex flex-col items-center gap-2 w-full">
+<div class="w-full bg-primary/20 rounded-t-lg relative group h-[30%]">
+<div class="absolute inset-0 bg-primary/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-t-lg"></div>
+</div>
+<span class="font-label-caps text-[10px] text-tertiary">SAT</span>
+</div>
+<div class="flex flex-col items-center gap-2 w-full">
+<div class="w-full bg-primary/20 rounded-t-lg relative group h-[20%]">
+<div class="absolute inset-0 bg-primary/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-t-lg"></div>
+</div>
+<span class="font-label-caps text-[10px] text-tertiary">SUN</span>
+</div>
+</div>
+</div>
+<!-- Line Chart: Success Rate over Time -->
+<div class="lg:col-span-4 glass-card p-md rounded-xl flex flex-col">
+<div class="mb-lg">
+<h3 class="font-h2 text-body-lg font-semibold text-on-surface">Stability Index</h3>
+<p class="font-body-sm text-on-surface-variant">Success rate consistency over time</p>
+</div>
+<div class="flex-grow relative mt-4">
+<svg class="w-full h-48 overflow-visible" viewbox="0 0 400 200">
+<defs>
+<lineargradient id="gradient" x1="0%" x2="0%" y1="0%" y2="100%">
+<stop offset="0%" style="stop-color:rgba(192, 193, 255, 0.4); stop-opacity:1"></stop>
+<stop offset="100%" style="stop-color:rgba(192, 193, 255, 0); stop-opacity:0"></stop>
+</lineargradient>
+</defs>
+<path d="M0,150 L50,140 L100,145 L150,110 L200,115 L250,80 L300,85 L350,70 L400,75" fill="none" stroke="#c0c1ff" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"></path>
+<path d="M0,150 L50,140 L100,145 L150,110 L200,115 L250,80 L300,85 L350,70 L400,75 V200 H0 Z" fill="url(#gradient)"></path>
+<circle cx="350" cy="70" fill="#c0c1ff" r="4"></circle>
+<circle cx="350" cy="70" fill="#c0c1ff" fill-opacity="0.2" r="8"></circle>
+</svg>
+<div class="flex justify-between mt-4">
+<span class="font-label-caps text-[10px] text-tertiary">08:00</span>
+<span class="font-label-caps text-[10px] text-tertiary">12:00</span>
+<span class="font-label-caps text-[10px] text-tertiary">16:00</span>
+<span class="font-label-caps text-[10px] text-tertiary">20:00</span>
+</div>
+</div>
+<div class="mt-md pt-md border-t border-white/5">
+<div class="flex items-center justify-between text-on-surface">
+<span class="font-body-sm">Peak Accuracy</span>
+<span class="font-mono text-primary font-bold">99.8%</span>
+</div>
+</div>
+</div>
+<!-- Detailed Table Section -->
+<div class="lg:col-span-12 glass-card rounded-xl overflow-hidden">
+<div class="p-md border-b border-white/5 flex items-center justify-between">
+<h3 class="font-h2 text-body-lg font-semibold text-on-surface">Recent Activity Logs</h3>
+<button class="text-primary font-label-caps hover:underline">Download CSV</button>
+</div>
+<table class="w-full text-left">
+<thead>
+<tr class="bg-white/5">
+<th class="p-md font-label-caps text-tertiary">DOCUMENT ID</th>
+<th class="p-md font-label-caps text-tertiary">MODEL</th>
+<th class="p-md font-label-caps text-tertiary">CONFIDENCE</th>
+<th class="p-md font-label-caps text-tertiary">DURATION</th>
+<th class="p-md font-label-caps text-tertiary">STATUS</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-white/5">
+<tr class="hover:bg-white/[0.02] transition-colors">
+<td class="p-md font-mono text-on-surface">DOC-824-X1</td>
+<td class="p-md text-on-surface-variant">Llama-3-Vision</td>
+<td class="p-md">
+<span class="bg-primary/10 text-primary px-2 py-0.5 rounded-full text-xs font-semibold">98.2%</span>
+</td>
+<td class="p-md text-on-surface-variant">1.2s</td>
+<td class="p-md">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+<span class="text-emerald-400 text-xs font-semibold">Success</span>
+</div>
+</td>
+</tr>
+<tr class="hover:bg-white/[0.02] transition-colors">
+<td class="p-md font-mono text-on-surface">DOC-824-X2</td>
+<td class="p-md text-on-surface-variant">OCR-Core-Pro</td>
+<td class="p-md">
+<span class="bg-primary/10 text-primary px-2 py-0.5 rounded-full text-xs font-semibold">94.5%</span>
+</td>
+<td class="p-md text-on-surface-variant">0.8s</td>
+<td class="p-md">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+<span class="text-emerald-400 text-xs font-semibold">Success</span>
+</div>
+</td>
+</tr>
+<tr class="hover:bg-white/[0.02] transition-colors">
+<td class="p-md font-mono text-on-surface">DOC-824-X3</td>
+<td class="p-md text-on-surface-variant">Mistral-7B-Doc</td>
+<td class="p-md">
+<span class="bg-error-container/20 text-error px-2 py-0.5 rounded-full text-xs font-semibold">62.1%</span>
+</td>
+<td class="p-md text-on-surface-variant">2.1s</td>
+<td class="p-md">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-error"></span>
+<span class="text-error text-xs font-semibold">Flagged</span>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</main>
+<!-- Background Decorative Elements -->
+<div class="fixed top-0 right-0 -z-10 w-1/2 h-1/2 bg-primary/5 blur-[120px] rounded-full pointer-events-none"></div>
+<div class="fixed bottom-0 left-0 -z-10 w-1/3 h-1/3 bg-indigo-600/5 blur-[100px] rounded-full pointer-events-none"></div>
+</body></html>
