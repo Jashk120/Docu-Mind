@@ -1,3 +1,4 @@
+```python
 from datetime import datetime, timezone
 import re
 import asyncio
@@ -12,7 +13,23 @@ from app.services.github_service import GitHubService
 
 
 class PipelineService:
+    """
+    Service orchestrating the pipeline for generating documentation for a GitHub repository.
+
+    This includes fetching files, generating docstrings via an LLM, creating a CONTEXT.md,
+    a README.md, and optionally opening a pull request with the changes.
+    """
+
     def __init__(self, github_service: GitHubService) -> None:
+        """
+        Initializes the PipelineService with a GitHub service and an LLM client.
+
+        Args:
+            github_service (GitHubService): An instance of GitHubService for repository interactions.
+
+        Raises:
+            HTTPException: If the OpenRouter API key is not configured.
+        """
         self.github = github_service
         if not settings.openrouter_api_key:
             raise HTTPException(status_code=500, detail="OPENROUTER_API_KEY is not configured")
@@ -24,6 +41,18 @@ class PipelineService:
         )
 
     async def _llm_completion(self, prompt: str):
+        """
+        Sends a prompt to the LLM and returns the response.
+
+        Args:
+            prompt (str): The prompt to send to the LLM.
+
+        Returns:
+            The response object from the LLM API.
+
+        Raises:
+            asyncio.TimeoutError: If the request times out.
+        """
         return await asyncio.wait_for(
             self.llm_client.chat.completions.create(
                 model=MODEL_ID,
@@ -34,6 +63,20 @@ class PipelineService:
         )
 
     async def _llm_completion_with_retry(self, prompt: str, attempts: int = 2):
+        """
+        Calls the LLM with retry logic for timeout errors.
+
+        Args:
+            prompt (str): The prompt to send.
+            attempts (int, optional): Maximum number of attempts. Defaults to 2.
+
+        Returns:
+            The response object from the LLM API.
+
+        Raises:
+            Exception: The last exception encountered if all attempts fail.
+            RuntimeError: If the call fails without a captured exception.
+        """
         last_error: Exception | None = None
         for attempt in range(1, max(attempts, 1) + 1):
             try:
@@ -62,6 +105,17 @@ class PipelineService:
 
     @staticmethod
     def _fallback_readme(owner: str, repo: str, context_md: str) -> str:
+        """
+        Generates a fallback README when the primary generation fails or times out.
+
+        Args:
+            owner (str): The repository owner (user or organization).
+            repo (str): The repository name.
+            context_md (str): The CONTEXT.md content (possibly truncated) to include.
+
+        Returns:
+            str: A markdown string for the fallback README.
+        """
         context_excerpt = context_md.strip()
         if len(context_excerpt) > 6000:
             context_excerpt = context_excerpt[:6000] + "\n\n... (truncated)"
@@ -87,6 +141,15 @@ class PipelineService:
 
     @staticmethod
     def get_language_for_path(path: str) -> str | None:
+        """
+        Determines the programming language for a given file path based on its extension.
+
+        Args:
+            path (str): The file path.
+
+        Returns:
+            str | None: The language name if the extension is known, otherwise None.
+        """
         lowered = path.lower()
         for ext, language in EXTENSION_MAP.items():
             if lowered.endswith(ext):
@@ -95,6 +158,16 @@ class PipelineService:
 
     @staticmethod
     def build_docstring_prompt(language: str, file_content: str) -> str:
+        """
+        Constructs a prompt for the LLM to add docstrings to a given file.
+
+        Args:
+            language (str): The programming language of the file.
+            file_content (str): The complete content of the file.
+
+        Returns:
+            str: A formatted prompt instructing the LLM to generate docstrings.
+        """
         format_example = DOCSTRING_FORMATS.get(language, "")
         return (
             f"You are a documentation expert. Given the following {language} file, \n"
@@ -114,6 +187,15 @@ class PipelineService:
 
     @staticmethod
     def _extract_usage(response: object) -> tuple[int, int, int]:
+        """
+        Extracts token usage statistics from an LLM response.
+
+        Args:
+            response (object): The response object from the LLM API (expected to have a 'usage' attribute).
+
+        Returns:
+            tuple[int, int, int]: A tuple of (prompt_tokens, completion_tokens, total_tokens).
+        """
         usage = getattr(response, "usage", None)
         if not usage:
             return (0, 0, 0)
@@ -124,6 +206,15 @@ class PipelineService:
 
     @staticmethod
     def _generic_name_confidence(source: str) -> tuple[str, str]:
+        """
+        Analyzes the source code for generic function names and returns a confidence flag.
+
+        Args:
+            source (str): The source code content.
+
+        Returns:
+            tuple[str, str]: A tuple with confidence level ("low" or "high") and a reason string.
+        """
         generic_names = {"handle", "process", "run", "do"}
         matches = re.findall(r"\b(?:def|function|func)\s+([A-Za-z_][A-Za-z0-9_]*)", source)
         for name in matches:
@@ -134,6 +225,24 @@ class PipelineService:
         return ("high", "no_generic_function_names_detected")
 
     async def run(self, owner: str, repo: str, max_files: int) -> dict:
+        """
+        Executes the full documentation pipeline (non‑streaming version).
+
+        Steps:
+        1. Fetch repository tree and filter supported code files.
+        2. For each selected file, call the LLM to add docstrings.
+        3. Generate CONTEXT.md and README.md from the documented files.
+        4. Create a pull request with the new documentation if enough files were processed.
+
+        Args:
+            owner (str): The repository owner (user or organization).
+            repo (str): The repository name.
+            max_files (int): Maximum number of code files to process.
+
+        Returns:
+            dict: A dictionary containing the pipeline results (completed files, skipped files,
+                  context markdown, readme markdown, PR URL, status, diffs, confidence flags, token usage).
+        """
         logger.info("Pipeline start owner=%s repo=%s max_files=%s", owner, repo, max_files)
 
         completed_files: dict[str, str] = {}
@@ -335,6 +444,21 @@ class PipelineService:
         }
 
     async def stream(self, owner: str, repo: str, max_files: int):
+        """
+        Executes the documentation pipeline with streaming progress updates.
+
+        This is an async generator that yields status updates at each stage.
+        The logic is identical to `run()`, but intermediate results are streamed.
+
+        Args:
+            owner (str): The repository owner (user or organization).
+            repo (str): The repository name.
+            max_files (int): Maximum number of code files to process.
+
+        Yields:
+            dict: A dictionary representing the current stage and status.
+                  Stages: 'tree_fetch', 'file_done', 'context_done', 'readme_done', 'pr_done', 'error', 'pipeline_done'.
+        """
         logger.info("Pipeline(stream) start owner=%s repo=%s max_files=%s", owner, repo, max_files)
 
         completed_files: dict[str, str] = {}
@@ -527,3 +651,4 @@ class PipelineService:
             },
         }
         yield {"stage": "pipeline_done", "result": result}
+```
