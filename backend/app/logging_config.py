@@ -1,3 +1,4 @@
+```python
 import logging
 
 logging.basicConfig(
@@ -6,3 +7,4 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger("documind")
+```
