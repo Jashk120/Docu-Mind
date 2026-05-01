@@ -1,7 +1,13 @@
+```typescript
 "use client";
 
 import { signIn } from "next-auth/react";
 
+/**
+ * LoginPage component renders the login interface with GitHub OAuth sign-in.
+ *
+ * @returns The login page UI with a glass panel, branding, and sign-in button.
+ */
 export default function LoginPage() {
   return (
     <main className="bg-background text-on-background font-body-md antialiased overflow-hidden selection:bg-primary/30 selection:text-primary min-h-screen">
@@ -41,3 +47,4 @@ export default function LoginPage() {
     </main>
   );
 }
+```
