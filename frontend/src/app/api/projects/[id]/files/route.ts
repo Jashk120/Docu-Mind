@@ -1,3 +1,4 @@
+```typescript
 import { getServerSession } from "next-auth";
 import path from "node:path";
 import { NextResponse } from "next/server";
@@ -6,6 +7,13 @@ import { authOptions } from "@/auth";
 import { prisma } from "@/lib/db";
 import { readTextObject } from "@/lib/storage";
 
+/**
+ * Handles GET requests to retrieve a file from a project's storage.
+ *
+ * @param req - The incoming request object, used to read the `path` query parameter.
+ * @param ctx - The route context containing a promise that resolves to project parameters (including `id`).
+ * @returns A JSON response containing either the file content and its path, or an error message with an appropriate HTTP status code.
+ */
 export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -39,3 +47,4 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     return NextResponse.json({ error: "File not found" }, { status: 404 });
   }
 }
+```

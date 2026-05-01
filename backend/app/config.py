@@ -1,3 +1,4 @@
+```python
 import os
 from dataclasses import dataclass
 
@@ -8,6 +9,15 @@ load_dotenv()
 
 @dataclass(frozen=True)
 class Settings:
+    """
+    Immutable configuration settings loaded from environment variables.
+
+    Attributes:
+        frontend_url (str): Primary frontend URL.
+        frontend_urls (list[str]): Additional frontend URLs.
+        openrouter_api_key (str): API key for OpenRouter LLM service.
+        llm_timeout_seconds (float): Timeout in seconds for LLM requests.
+    """
     frontend_url: str
     frontend_urls: list[str]
     openrouter_api_key: str
@@ -15,6 +25,15 @@ class Settings:
 
     @property
     def allowed_origins(self) -> list[str]:
+        """
+        Returns a deduplicated list of allowed CORS origins.
+
+        Combines the primary frontend URL, development hosts, and any
+        additional frontend URLs specified in the configuration.
+
+        Returns:
+            list[str]: List of unique origin strings allowed for CORS.
+        """
         return list(
             {
                 self.frontend_url,
@@ -31,3 +50,4 @@ settings = Settings(
     openrouter_api_key=os.getenv("OPENROUTER_API_KEY", ""),
     llm_timeout_seconds=float(os.getenv("LLM_TIMEOUT_SECONDS", "120")),
 )
+```

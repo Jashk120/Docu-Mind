@@ -1,3 +1,4 @@
+```typescript
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import path from "node:path";
@@ -6,8 +7,21 @@ import { authOptions } from "@/auth";
 import { prisma } from "@/lib/db";
 import { putTextObject } from "@/lib/storage";
 
+/**
+ * Represents a file item with its path and an optional reason for skipping.
+ */
 type FileItem = { path: string; reason?: string };
 
+/**
+ * Handles GET requests to retrieve the authenticated user's pipeline runs.
+ *
+ * Fetches up to 100 most recent pipeline runs for the authenticated user,
+ * including associated files, ordered by creation date descending.
+ *
+ * @returns A NextResponse containing a JSON object with the user's runs.
+ *          If the user is not authenticated, returns a 401 response.
+ *          If the user record is not found, returns an empty runs array.
+ */
 export async function GET() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -29,6 +43,20 @@ export async function GET() {
   return NextResponse.json({ runs });
 }
 
+/**
+ * Handles POST requests to create a new pipeline run and project record.
+ *
+ * Expects a JSON body containing pipeline run details such as owner, repo,
+ * status, PR URL, context/readme markdown, completed/skipped files, and usage
+ * statistics. Writes the README.md, CONTEXT.md, and completed file contents
+ * to object storage, then creates corresponding database records for the run
+ * and project.
+ *
+ * @param req - The incoming request object containing the JSON body.
+ * @returns A NextResponse containing a JSON object with the created run and project.
+ *          Returns 401 if the user is not authenticated, or 404 if the user record
+ *          is not found.
+ */
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -128,3 +156,4 @@ export async function POST(req: Request) {
 
   return NextResponse.json({ run, project });
 }
+```

@@ -1,3 +1,4 @@
+```typescript
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 
@@ -15,6 +16,14 @@ export const metadata: Metadata = {
   description: "AI documentation pipeline",
 };
 
+/**
+ * Root layout component for the DocuMind application.
+ * Sets up global styles, fonts, and providers.
+ *
+ * @param props - The component props.
+ * @param props.children - The content to be wrapped by the layout.
+ * @returns The root HTML structure with fonts, metadata, and providers.
+ */
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -32,3 +41,4 @@ export default function RootLayout({
     </html>
   );
 }
+```

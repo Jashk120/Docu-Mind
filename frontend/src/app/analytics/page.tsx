@@ -1,3 +1,4 @@
+```typescript
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 
@@ -5,11 +6,29 @@ import { authOptions } from "@/auth";
 import { AppNavbar } from "@/components/app-navbar";
 import { prisma } from "@/lib/db";
 
+/**
+ * Calculates the arithmetic mean of an array of numbers.
+ *
+ * @param nums - The array of numbers to average.
+ * @returns The average value, or 0 if the array is empty.
+ */
 function avg(nums: number[]) {
   if (nums.length === 0) return 0;
   return nums.reduce((a, b) => a + b, 0) / nums.length;
 }
 
+/**
+ * Server-side rendered analytics page component.
+ *
+ * Fetches the current user session, retrieves the user's project data,
+ * computes various analytics metrics (total runs, success rate, average duration,
+ * total tokens used, runs per day, average files documented), and renders a
+ * dashboard with these statistics.
+ *
+ * If the user is not authenticated or does not exist, redirects to the home page.
+ *
+ * @returns A JSX element displaying the analytics dashboard.
+ */
 export default async function AnalyticsPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) redirect("/");
@@ -78,3 +97,4 @@ export default async function AnalyticsPage() {
     </div>
   );
 }
+```

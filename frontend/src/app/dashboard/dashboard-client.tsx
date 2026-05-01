@@ -1,3 +1,4 @@
+```typescript
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -5,22 +6,34 @@ import Link from "next/link";
 
 import { AppNavbar } from "@/components/app-navbar";
 
+/**
+ * Represents a GitHub repository with its full name.
+ */
 type Repo = {
   full_name: string;
 };
 
+/**
+ * Represents a diff between the original and documented content of a file.
+ */
 type FileDiff = {
   path: string;
   original_content: string;
   documented_content: string;
 };
 
+/**
+ * Represents a confidence flag for a file, including a confidence level and reason.
+ */
 type ConfidenceFlag = {
   path: string;
   confidence: string;
   reason: string;
 };
 
+/**
+ * Represents the response from the docstring pipeline, including optional PR URL, status, generated files, diffs, and usage stats.
+ */
 type PipelineResponse = {
   pr_url?: string;
   status?: string;
@@ -45,6 +58,12 @@ const steps = [
   { key: "pr_done", label: "Creating Pull Request" },
 ];
 
+/**
+ * Parses a CONTEXT.md string into table lines and security-related lines.
+ *
+ * @param context - The raw CONTEXT.md string.
+ * @returns An object containing `tableLines` (lines that are part of a markdown table) and `securityLines` (lines matching security-related keywords).
+ */
 function parseContextSections(context: string) {
   const lines = context.split("\n");
   const tableLines = lines.filter((l) => l.includes("|") && l.trim().startsWith("|"));
@@ -52,6 +71,13 @@ function parseContextSections(context: string) {
   return { tableLines, securityLines };
 }
 
+/**
+ * Dashboard client component that allows the user to select a GitHub repository,
+ * run the docstring pipeline, view diffs, confidence flags, and the generated CONTEXT.md.
+ *
+ * @param props.accessToken - The GitHub OAuth access token for API calls.
+ * @returns The rendered dashboard UI.
+ */
 export function DashboardClient({
   accessToken,
 }: {
@@ -73,6 +99,12 @@ export function DashboardClient({
   const backendUrl = useMemo(() => process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8000", []);
 
   useEffect(() => {
+    /**
+     * Fetches the list of authenticated user's GitHub repositories.
+     *
+     * @returns A promise that resolves when repositories are loaded.
+     * @throws {Error} If the GitHub API request fails.
+     */
     const loadRepos = async () => {
       setLoadingRepos(true);
       setError("");
@@ -108,6 +140,13 @@ export function DashboardClient({
   const { tableLines, securityLines } = parseContextSections(contextMd);
   const canGenerate = Boolean(selectedRepo) && !running && !loadingRepos;
 
+  /**
+   * Runs the docstring pipeline for the selected repository, processes streaming events,
+   * and updates the UI with results.
+   *
+   * @returns A promise that resolves when the pipeline completes or fails.
+   * @throws {Error} If the pipeline request fails or returns no result.
+   */
   const generateDocs = async () => {
     if (!selectedRepo) return;
     const [owner, repo] = selectedRepo.split("/");
@@ -384,3 +423,4 @@ export function DashboardClient({
     </div>
   );
 }
+```

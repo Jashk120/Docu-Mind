@@ -1,3 +1,4 @@
+```python
 import base64
 from typing import Any
 
@@ -8,7 +9,20 @@ from app.constants import BINARY_EXTENSIONS
 
 
 class GitHubService:
+    """
+    Service class for interacting with the GitHub API.
+
+    Provides methods for repository analysis, file operations, and pull request creation,
+    all authenticated via a personal access token.
+    """
+
     def __init__(self, token: str) -> None:
+        """
+        Initializes the GitHubService with an authentication token.
+
+        Args:
+            token (str): GitHub personal access token for API authentication.
+        """
         self.token = token
         self.headers = {
             "Authorization": f"Bearer {token}",
@@ -18,15 +32,52 @@ class GitHubService:
 
     @staticmethod
     def is_binary_file(path: str) -> bool:
+        """
+        Checks whether a given file path corresponds to a binary file based on its extension.
+
+        Args:
+            path (str): The file path to check.
+
+        Returns:
+            bool: True if the file extension is in the predefined list of binary extensions, False otherwise.
+        """
         lowered = path.lower()
         return any(lowered.endswith(ext) for ext in BINARY_EXTENSIONS)
 
     @staticmethod
     def is_excluded_path(path: str) -> bool:
+        """
+        Determines if a file path should be excluded from processing.
+
+        Paths containing "node_modules" or starting with ".env" (in any directory) are excluded.
+
+        Args:
+            path (str): The file path to evaluate.
+
+        Returns:
+            bool: True if the path is excluded, False otherwise.
+        """
         parts = path.split("/")
         return "node_modules" in parts or any(part.startswith(".env") for part in parts)
 
     async def create_or_update_readme(self, owner: str, repo: str, content: str) -> dict[str, Any]:
+        """
+        Creates or updates the README.md file in a GitHub repository.
+
+        Args:
+            owner (str): The owner (user or organization) of the repository.
+            repo (str): The name of the repository.
+            content (str): The new content for the README file.
+
+        Returns:
+            dict[str, Any]: A dictionary containing:
+                - "ok": True on success.
+                - "commit_sha": The SHA of the commit (if available).
+                - "html_url": The HTML URL of the README file (if available).
+
+        Raises:
+            HTTPException: If the API requests fail or the response status is unexpected.
+        """
         api_base = f"https://api.github.com/repos/{owner}/{repo}/contents/README.md"
         content_b64 = base64.b64encode(content.encode("utf-8")).decode("utf-8")
 
@@ -54,6 +105,28 @@ class GitHubService:
         }
 
     async def analyze_repo(self, owner: str, repo: str) -> dict[str, Any]:
+        """
+        Analyzes a GitHub repository by fetching its file tree via the Git API.
+
+        Retrieves the repository's default branch, its tree, and filters out binary and excluded files.
+
+        Args:
+            owner (str): The owner (user or organization) of the repository.
+            repo (str): The name of the repository.
+
+        Returns:
+            dict[str, Any]: A dictionary containing:
+                - "ok": True on success.
+                - "owner": The repository owner.
+                - "repo": The repository name.
+                - "default_branch": The default branch of the repository.
+                - "total_items": Total number of items in the full tree.
+                - "filtered_items": Number of items after filtering.
+                - "tree": The filtered tree entries.
+
+        Raises:
+            HTTPException: If any API request fails or the tree SHA cannot be resolved.
+        """
         repo_api = f"https://api.github.com/repos/{owner}/{repo}"
 
         async with httpx.AsyncClient(timeout=45.0) as client:
@@ -91,6 +164,21 @@ class GitHubService:
         }
 
     async def fetch_file_content(self, owner: str, repo: str, path: str) -> tuple[int, str | None]:
+        """
+        Fetches the text content of a file from a GitHub repository.
+
+        The file is expected to be a text file; binary files will not decode properly.
+
+        Args:
+            owner (str): The owner (user or organization) of the repository.
+            repo (str): The name of the repository.
+            path (str): The file path within the repository.
+
+        Returns:
+            tuple[int, str | None]: A tuple containing:
+                - HTTP status code of the Get Contents request.
+                - Decoded UTF-8 content of the file, or None if the file is binary, missing, or an error occurred.
+        """
         repo_api = f"https://api.github.com/repos/{owner}/{repo}"
         async with httpx.AsyncClient(timeout=45.0) as client:
             content_resp = await client.get(f"{repo_api}/contents/{path}", headers=self.headers)
@@ -112,6 +200,23 @@ class GitHubService:
         files_to_commit: dict[str, str],
         branch_name: str,
     ) -> str:
+        """
+        Creates a new branch, commits multiple files to it, and opens a pull request.
+
+        The pull request targets the default branch ("main") of the repository.
+
+        Args:
+            owner (str): The owner (user or organization) of the repository.
+            repo (str): The name of the repository.
+            files_to_commit (dict[str, str]): A dictionary mapping file paths to their new content.
+            branch_name (str): The name for the new branch to be created.
+
+        Returns:
+            str: The HTML URL of the created pull request.
+
+        Raises:
+            HTTPException: If any API request fails (e.g., branch creation, file commit, or PR creation).
+        """
         repo_api = f"https://api.github.com/repos/{owner}/{repo}"
 
         async with httpx.AsyncClient(timeout=45.0) as client:
@@ -168,3 +273,4 @@ class GitHubService:
                 raise HTTPException(status_code=pr_resp.status_code, detail=pr_resp.text)
 
         return pr_resp.json().get("html_url", "")
+```
