@@ -1,10 +1,10 @@
 import { getServerSession } from "next-auth";
-import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { NextResponse } from "next/server";
 
 import { authOptions } from "@/auth";
 import { prisma } from "@/lib/db";
+import { readTextObject } from "@/lib/storage";
 
 export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions);
@@ -24,15 +24,16 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     return NextResponse.json({ error: "Invalid path" }, { status: 400 });
   }
 
-  const baseDir = path.resolve(process.cwd(), project.storagePath);
-  const absolutePath = path.resolve(baseDir, filePath);
-
-  if (!absolutePath.startsWith(baseDir)) {
+  const normalizedPath = filePath.replaceAll(path.sep, "/");
+  if (normalizedPath.startsWith("/")) {
     return NextResponse.json({ error: "Invalid path" }, { status: 400 });
   }
 
+  const storagePrefix = project.storagePath.replaceAll(path.sep, "/");
+  const objectKey = path.posix.join(storagePrefix, normalizedPath);
+
   try {
-    const content = await readFile(absolutePath, "utf8");
+    const content = await readTextObject(objectKey);
     return NextResponse.json({ path: filePath, content });
   } catch {
     return NextResponse.json({ error: "File not found" }, { status: 404 });

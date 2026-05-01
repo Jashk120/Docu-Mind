@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 
 import { authOptions } from "@/auth";
 import { prisma } from "@/lib/db";
+import { deletePrefix } from "@/lib/storage";
 
 export async function GET(_: Request, ctx: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions);
@@ -29,6 +30,7 @@ export async function DELETE(_: Request, ctx: { params: Promise<{ id: string }> 
   const existing = await prisma.project.findFirst({ where: { id, userId: user.id } });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
+  await deletePrefix(`${existing.storagePath.replaceAll("\\", "/")}/`);
   await prisma.project.delete({ where: { id } });
   return NextResponse.json({ ok: true });
 }

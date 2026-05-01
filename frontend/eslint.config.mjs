@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Runtime/project artifacts not part of source linting.
+    "storage/**",
   ]),
 ]);
 

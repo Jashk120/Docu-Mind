@@ -1,10 +1,10 @@
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
-import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { authOptions } from "@/auth";
 import { prisma } from "@/lib/db";
+import { putTextObject } from "@/lib/storage";
 
 type FileItem = { path: string; reason?: string };
 
@@ -60,17 +60,15 @@ export async function POST(req: Request) {
   const now = new Date();
   const timestampDir = now.toISOString().replace(/[:.]/g, "-");
   const storagePath = path.join("storage", owner, repo, timestampDir);
-  const storageRoot = path.join(process.cwd(), storagePath);
+  const storagePrefix = storagePath.replaceAll(path.sep, "/");
 
-  await mkdir(storageRoot, { recursive: true });
-  await writeFile(path.join(storageRoot, "README.md"), String(readme_md ?? ""), "utf8");
-  await writeFile(path.join(storageRoot, "CONTEXT.md"), String(context_md ?? ""), "utf8");
+  await putTextObject(`${storagePrefix}/README.md`, String(readme_md ?? ""));
+  await putTextObject(`${storagePrefix}/CONTEXT.md`, String(context_md ?? ""));
 
   await Promise.all(
     completedEntries.map(async ([filePath, content]) => {
-      const targetPath = path.join(storageRoot, filePath);
-      await mkdir(path.dirname(targetPath), { recursive: true });
-      await writeFile(targetPath, String(content ?? ""), "utf8");
+      const objectPath = path.posix.join(storagePrefix, filePath.replaceAll(path.sep, "/"));
+      await putTextObject(objectPath, String(content ?? ""));
     }),
   );
 

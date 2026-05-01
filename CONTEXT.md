@@ -2,131 +2,129 @@
 
 ## Workspace Summary
 
-This workspace contains a two-service DocuMind prototype:
+This repository is a two-service DocuMind prototype:
 
-- `frontend/` is a Next.js app (NextAuth GitHub login + UI + SQLite/Prisma storage)
-- `backend/` is a FastAPI app (GitHub + OpenRouter documentation pipeline)
+- `frontend/`: Next.js app router project with NextAuth GitHub login, Prisma + SQLite, run/project UI, and artifact storage.
+- `backend/`: FastAPI service that analyzes repos, runs docstring generation through OpenRouter, builds `CONTEXT.md` and `README.md`, and optionally opens PRs.
 
-Current date context in this workspace: 2026-04-29.
+Snapshot date: 2026-04-29.
 
-## Root Paths
+## Root Layout
 
+- `/home/curator/TCS/Prototype/CONTEXT.md`
 - `/home/curator/TCS/Prototype/run-frontend.sh`
 - `/home/curator/TCS/Prototype/run-backend.sh`
-- `/home/curator/TCS/Prototype/CONTEXT.md`
 - `/home/curator/TCS/Prototype/frontend/`
 - `/home/curator/TCS/Prototype/backend/`
+- `/home/curator/TCS/Prototype/files/` (auxiliary)
 
-## Current Workflow
+## Current End-to-End Flow
 
-1. User logs in with GitHub via NextAuth.
-2. Dashboard loads user repos from GitHub and starts pipeline.
-3. Frontend calls backend streaming endpoint:
-   - `POST /repos/docstring-pipeline/stream`
-4. Backend generates documented files + `README.md` + `CONTEXT.md` and (if eligible) opens a PR.
-5. Frontend posts pipeline result to `POST /api/runs`.
-6. `POST /api/runs` persists:
-   - `PipelineRun` + `PipelineRunFile` rows
-   - `Project` row (run summary + storage metadata)
-   - artifact files on disk under `frontend/storage/{owner}/{repo}/{timestamp}/`
-7. UI links to `/projects/[id]` for saved artifact inspection.
+1. User authenticates in frontend via GitHub OAuth (NextAuth).
+2. Dashboard triggers backend pipeline (typically streaming endpoint).
+3. Backend processes eligible code files, adds docstrings, generates repo-level `CONTEXT.md` and `README.md`, and attempts PR creation when completion threshold is met.
+4. Frontend persists run output through `POST /api/runs`.
+5. `POST /api/runs` writes artifacts to disk and stores both run-level and project-level database records.
+6. Projects UI reads stored records and loads artifact files from disk via project file API.
 
-## Frontend (Current)
+## Frontend State (Current)
 
-### Key Routes
+### App Routes Present
 
-- `/` login page
-- `/dashboard` main pipeline UI
-- `/projects` project/run cards
-- `/projects/[id]` artifact detail (README, CONTEXT, Diff, Confidence)
-- `/documentation` pipeline run history (from `PipelineRun`)
-- `/analytics` aggregate metrics (from `Project`)
+- `/` landing/login
+- `/dashboard` pipeline execution UI
+- `/projects` saved runs/projects list
+- `/projects/[id]` project artifact detail
+- `/analytics` aggregate metrics
+- API routes:
+  - `/api/auth/[...nextauth]`
+  - `/api/runs`
+  - `/api/projects`
+  - `/api/projects/[id]`
+  - `/api/projects/[id]/files`
 
-### Shared Navbar
+Note: there is no active `/documentation` route in `src/app` right now.
 
-- Implemented as reusable client component:
-  - `/home/curator/TCS/Prototype/frontend/src/components/app-navbar.tsx`
-- Used across dashboard/projects/documentation/analytics.
-- Active tab is highlighted by pathname prefix matching.
+### Navigation
 
-### Auth
+- Shared navbar component: `frontend/src/components/app-navbar.tsx`
+- Tabs currently rendered: Dashboard, Projects, Analytics
 
-- Uses `next-auth@4` with `PrismaAdapter` and GitHub provider.
-- Session strategy: database.
-- `session.accessToken` is populated from linked GitHub account token.
-- `session.user.id` is explicitly set in session callback and is used for auth guards/data lookups.
+### Data Persistence
 
-### Storage and Project APIs
+- Prisma schema includes NextAuth tables plus:
+  - `PipelineRun`
+  - `PipelineRunFile`
+  - `Project`
+- `POST /api/runs` does all of:
+  - stores `README.md` and `CONTEXT.md` and completed files under:
+    - `frontend/storage/{owner}/{repo}/{ISO-timestamp-sanitized}/...`
+  - creates a `PipelineRun` with child `PipelineRunFile` rows
+  - creates a `Project` row with status, token/duration summary, storage path, diff/confidence JSON snapshots
 
-- `POST /api/runs`:
-  - writes files to `frontend/storage/...`
-  - creates `Project` record with owner/repo/timestamp/pr/status/file counts/token usage/duration/storage path
-  - stores diff + confidence JSON snapshots
-- `GET /api/projects`: list projects for logged-in user
-- `GET /api/projects/[id]`: single project metadata
-- `DELETE /api/projects/[id]`: delete project record
-- `GET /api/projects/[id]/files?path=...`: read stored file contents with path traversal protection
+### Project APIs
 
-### Prisma Models in Active Use
+- `GET /api/projects`: list projects for authenticated user, ordered by `timestamp desc`
+- `GET /api/projects/[id]`: fetch one project scoped to authenticated user
+- `DELETE /api/projects/[id]`: delete project row only
+- `GET /api/projects/[id]/files?path=...`: secure file read from `project.storagePath` with traversal checks
 
-- `Project` is now run-oriented, not manual CRUD metadata.
-- `PipelineRun`/`PipelineRunFile` still exist and power `/documentation`.
+## Backend State (Current)
 
-## Backend (Current)
-
-### Key Files
-
-- `/home/curator/TCS/Prototype/backend/app/main.py`
-- `/home/curator/TCS/Prototype/backend/app/services/pipeline_service.py`
-- `/home/curator/TCS/Prototype/backend/app/services/github_service.py`
-
-### API Endpoints
+### API Endpoints in `backend/app/main.py`
 
 - `GET /health`
 - `GET /`
 - `POST /repos/readme`
 - `POST /repos/analyze`
 - `POST /repos/docstring-pipeline`
-- `POST /repos/docstring-pipeline/stream`
+- `POST /repos/docstring-pipeline/stream` (SSE)
 
-### Auth Model
+### Pipeline Behavior (`pipeline_service.py`)
 
-- Backend is stateless re OAuth session.
-- GitHub token is supplied per request from frontend session token.
+- Filters repo tree by supported code extensions.
+- Processes up to `max_files` and skips invalid/failed outputs.
+- Tracks token usage (`prompt_tokens`, `completion_tokens`, `total_tokens`).
+- Generates repo-level `CONTEXT.md` then `README.md` (with retry and fallback README on failure).
+- Attempts PR creation only if completion ratio is at least 50%.
+- Returns completed files, skipped files, usage, status, PR URL, file diffs, and confidence flags.
 
-## Environment Variables
+### Backend Auth Pattern
 
-### Frontend (`frontend/.env.local`)
+- Backend is stateless with respect to user session.
+- GitHub token is required on each request payload.
 
-- `NEXT_PUBLIC_API_BASE=http://localhost:8000`
-- `NEXTAUTH_URL=http://localhost:3000`
-- `NEXTAUTH_SECRET=...`
-- `GITHUB_ID=...`
-- `GITHUB_SECRET=...`
+## Runtime / Environment
 
-### Backend (`backend/.env`)
+### Frontend
 
-- `FRONTEND_URL=http://localhost:3000`
-- `FRONTEND_URLS=` (optional comma-separated list)
-- `OPENROUTER_API_KEY=...`
+- Key dependencies observed:
+  - `next@16.2.4`
+  - `react@19.2.4`
+  - `next-auth@4.24.14`
+  - `prisma@6.17.1`
+- Uses SQLite datasource (`DATABASE_URL`, usually `file:./prisma/dev.db`).
 
-## Run Commands
+### Backend
 
-From root:
+- Python FastAPI app with OpenRouter-backed LLM calls via `openai.AsyncOpenAI` configured with OpenRouter base URL.
+- Requires `OPENROUTER_API_KEY`.
+
+### Common Local Defaults
+
+- Frontend: `http://localhost:3000`
+- Backend: `http://localhost:8000`
+
+Root scripts:
 
 ```bash
 ./run-backend.sh
 ./run-frontend.sh
 ```
 
-Default ports:
+## Known Caveats
 
-- Frontend: `http://localhost:3000`
-- Backend: `http://localhost:8000`
-
-## Audit Findings / Known Mismatches
-
-1. `frontend/src/components/dashboard-client.tsx` is legacy/unused; active dashboard is `src/app/dashboard/dashboard-client.tsx`.
-2. `Project` model changed significantly; stale Prisma client/dev server instances can cause runtime errors like unknown `timestamp` field. Fix: run `npx prisma generate && npx prisma db push` and restart frontend dev server.
-3. `/documentation` still reads `PipelineRun` while `/projects` and `/analytics` rely on `Project`; this split is intentional now but can confuse expectations if not documented.
-4. `frontend/storage/` is currently append-only; deleting a `Project` row does not remove artifact files on disk.
+1. `frontend/src/components/dashboard-client.tsx` exists alongside active `frontend/src/app/dashboard/dashboard-client.tsx`; the app-router version is the active dashboard implementation.
+2. Backend README appears outdated (mentions legacy `/auth/github/*` endpoints not present in current `main.py`).
+3. Deleting a project through API removes DB metadata but does not remove saved artifact files under `frontend/storage/`.
+4. `frontend/storage/` includes historical generated snapshots (for example under `Jashk120/...`) that are data artifacts, not active app source.
