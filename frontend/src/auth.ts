@@ -7,7 +7,6 @@ import { prisma } from "@/lib/db";
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
   secret: process.env.NEXTAUTH_SECRET,
-  trustHost: true,
   pages: {
     signIn: "/",
     error: "/",
