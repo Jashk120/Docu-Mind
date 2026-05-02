@@ -1,8 +1,25 @@
 "use client";
 
 import { signIn } from "next-auth/react";
+import { useSearchParams } from "next/navigation";
+
+const authErrors: Record<string, string> = {
+  OAuthSignin: "GitHub sign-in could not be started. Check OAuth app client ID/secret and callback URL.",
+  OAuthCallback: "GitHub callback failed. Verify callback URL and app permissions.",
+  OAuthCreateAccount: "Could not create account from GitHub profile. Try another GitHub account once.",
+  EmailCreateAccount: "Could not create account. Try signing in with a different account.",
+  Callback: "Auth callback failed. Please try again.",
+  OAuthAccountNotLinked: "This email is already linked to another sign-in method/account.",
+  AccessDenied: "Access was denied by GitHub or by app policy.",
+  Configuration: "Auth configuration is invalid on server.",
+  default: "Unable to sign in right now. Please try again.",
+};
 
 export default function LoginPage() {
+  const searchParams = useSearchParams();
+  const errorKey = searchParams.get("error");
+  const errorMessage = errorKey ? (authErrors[errorKey] ?? authErrors.default) : "";
+
   return (
     <main className="bg-background text-on-background font-body-md antialiased overflow-hidden selection:bg-primary/30 selection:text-primary min-h-screen">
       <div className="relative min-h-screen w-full flex items-center justify-center p-6 overflow-hidden">
@@ -25,6 +42,13 @@ export default function LoginPage() {
               <h1 className="text-5xl font-extrabold gradient-text tracking-tighter font-[Manrope]">DocuMind AI</h1>
               <p className="text-[#a1a1aa] mt-2">AI-powered documentation for any codebase</p>
             </div>
+
+            {errorMessage ? (
+              <div className="mb-4 w-full rounded-lg border border-red-500/50 bg-red-500/15 px-4 py-3 text-left text-sm text-red-200">
+                {errorMessage}
+                {errorKey ? <div className="mt-1 text-xs text-red-300/90">Code: {errorKey}</div> : null}
+              </div>
+            ) : null}
 
             <button
               onClick={() => signIn("github", { callbackUrl: "/dashboard" })}

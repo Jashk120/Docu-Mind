@@ -6,6 +6,13 @@ import { prisma } from "@/lib/db";
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
+  secret: process.env.NEXTAUTH_SECRET,
+  trustHost: true,
+  pages: {
+    signIn: "/",
+    error: "/",
+  },
+  debug: process.env.NODE_ENV !== "production",
   providers: [
     GitHubProvider({
       clientId: process.env.GITHUB_ID ?? "",

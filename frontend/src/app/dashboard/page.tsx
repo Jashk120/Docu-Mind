@@ -8,8 +8,12 @@ import { DashboardClient } from "./dashboard-client";
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
 
-  if (!session?.user || !session.accessToken) {
+  if (!session?.user) {
     redirect("/");
+  }
+
+  if (!session.accessToken) {
+    redirect("/api/auth/signin/github?callbackUrl=/dashboard");
   }
 
   return (
