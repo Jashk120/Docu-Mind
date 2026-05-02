@@ -1,7 +1,6 @@
 "use client";
 
 import { signIn } from "next-auth/react";
-import { useSearchParams } from "next/navigation";
 
 const authErrors: Record<string, string> = {
   OAuthSignin: "GitHub sign-in could not be started. Check OAuth app client ID/secret and callback URL.",
@@ -16,8 +15,11 @@ const authErrors: Record<string, string> = {
 };
 
 export default function LoginPage() {
-  const searchParams = useSearchParams();
-  const errorKey = searchParams.get("error");
+  const errorKey =
+    typeof window !== "undefined"
+      ? (new URLSearchParams(window.location.search).get("error") ?? "")
+      : "";
+
   const errorMessage = errorKey ? (authErrors[errorKey] ?? authErrors.default) : "";
 
   return (
